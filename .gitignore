@@ -12,3 +12,4 @@ build/
 HELP.md
 
 .claude/
+**/bin/
