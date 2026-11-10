@@ -1,9 +1,9 @@
 package com.tiendaonline.clientes.service;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 import org.springframework.stereotype.Service;
-import org.springframework.stereotype.service;
 
 import com.tiendaonline.clientes.entity.Cliente;
 import com.tiendaonline.clientes.repository.ClienteRepository;
@@ -17,19 +17,22 @@ public class ClienteService {
     }
 
     public Cliente registrarCliente(String nombre, String email){
+        boolean emailDuplicado = repository.existsByEmail(email);
+
+        if(emailDuplicado){
+            // Excepcion cliente con email duplicado
+            throw new IllegalArgumentException("El email ya pertenece a un cliente registrado");
+        }
+
         Cliente cliente = new Cliente();
         cliente.setNombre(nombre);
         cliente.setEmail(email);
         cliente.setFechaAlta(LocalDateTime.now());
 
-        repository.save(cliente);
-
-        return cliente;
+        return repository.save(cliente);
     }
 
     public Optional<Cliente> obtenerCliente(Integer id){
-        Optional<Cliente> cliente = repository.findById(id);
-
-        return cliente;
+        return repository.findById(id);
     }
 }
