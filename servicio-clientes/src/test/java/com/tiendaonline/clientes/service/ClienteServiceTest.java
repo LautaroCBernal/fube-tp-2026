@@ -1,11 +1,17 @@
 package com.tiendaonline.clientes.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,31 +32,71 @@ public class ClienteServiceTest {
 
     @Test
     void testEmailDuplicado(){
+        // Prepara las respuestas del repositorio simulado
         when(repository.existsByEmail("nombre@gmail.com")).thenReturn(true);
 
+        // Compara la excepcion que levanta el service
         assertThrows(
             IllegalArgumentException.class,
             () -> service.registrarCliente("nombre", "nombre@gmail.com")
         );
         
+        // Verifica que no se haya guardado el cliente
         verify(repository, never()).save(any());
     }
 
+    @Test
     void testRegistroExitoso(){
-        // INCOMPLETO CORREGIR
-        when(repository.existsByEmail("nombre@gmail.com")).thenReturn(false);
-
+        // Prepara las respuestas del repositorio simulado
+        when(repository.existsByEmail("nombre@gmail.com"))
+            .thenReturn(false);
         when(repository.save(any(Cliente.class)))
             .thenAnswer(invocation -> invocation.getArgument(0));
+
+        // Ejecuta el registro
+        Cliente cliente = service.registrarCliente("nombre", "nombre@gmail.com");
+
+        // Verifica los campos del cliente registrado y que efectivamente se haya guardado
+        verify(repository).save(any(Cliente.class));
+
+        assertEquals("nombre", cliente.getNombre());
+        assertEquals("nombre@gmail.com", cliente.getEmail());
+        assertNotNull(cliente.getFechaAlta());
     }
 
+    @Test
     void testClienteExistente(){
-        // INCOMPLETO CORREGIR
-        // when(repository.findById(1)).thenReturn(Cliente.class);
+        // Creacion del cliente a devolver
+        Cliente cliente = new Cliente();
+        cliente.setNombre("nombre");
+        cliente.setEmail("nombre@gmail.com");
+        cliente.setId(1);
+        
+        // Prepara la respuesta del repositorio simulado
+        when(repository.findById(1))
+            .thenReturn(Optional.of(cliente));
+
+        // Ejecuta la busqueda
+        Optional<Cliente> clienteEncontrado = service.obtenerCliente(1);
+
+        // Verifica el cliente encontrado
+        verify(repository, times(1)).findById(1);
+        assertTrue(clienteEncontrado.isPresent());
+        assertSame(cliente, clienteEncontrado.get());
     }
 
+    @Test
     void testeClienteInexistente(){
-        // INCOMPLETO CORREGIR
+        // Prepara la respuesta del repositorio simulado
+        when(repository.findById(1))
+            .thenReturn(Optional.empty());
+        
+        // Ejecuta la busqueda
+        Optional<Cliente> clienteEncontrado = service.obtenerCliente(1);
+
+        // Verifica que no se haya encontrado el cliente
+        verify(repository, times(1)).findById(1);
+        assertTrue(clienteEncontrado.isEmpty());
     }
 }
 
