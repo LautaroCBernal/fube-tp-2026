@@ -11,6 +11,9 @@ import com.tiendaonline.clientes.dto.ClienteRequest;
 import com.tiendaonline.clientes.dto.ClienteResponse;
 import com.tiendaonline.clientes.entity.Cliente;
 import com.tiendaonline.clientes.service.ClienteService;
+
+import jakarta.validation.Valid;
+
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,7 +25,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 
 // Mapea las peticiones /api/v1/clientes
 @RestController
-@RequestMapping("/api/v1/clientes")
+@RequestMapping("/v1/clientes")
 public class ClienteController {
     private final ClienteService service;
     
@@ -32,7 +35,7 @@ public class ClienteController {
 
     // POST
     @PostMapping
-    public ResponseEntity<ClienteResponse> registrarCliente(@RequestBody ClienteRequest clienteRequest) {
+    public ResponseEntity<ClienteResponse> registrarCliente(@Valid @RequestBody ClienteRequest clienteRequest) {
         
         Cliente cliente = service.registrarCliente(clienteRequest.nombre(), clienteRequest.email());
         ClienteResponse clienteResponse = new ClienteResponse(cliente.getId(), cliente.getNombre(), cliente.getEmail(), cliente.getFechaAlta());
@@ -41,7 +44,7 @@ public class ClienteController {
     }
     
     @GetMapping("/{id}")
-    public ResponseEntity<ClienteResponse> obtenerCliente(@PathVariable Integer id) {
+    public ResponseEntity<ClienteResponse> obtenerCliente(@PathVariable("id") Integer id) {
         Optional<Cliente> respuesta = service.obtenerCliente(id);
         
         // Si no se encuentra
