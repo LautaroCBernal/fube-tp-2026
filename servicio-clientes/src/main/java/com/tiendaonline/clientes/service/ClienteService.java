@@ -6,6 +6,7 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 
 import com.tiendaonline.clientes.entity.Cliente;
+import com.tiendaonline.clientes.exception.EmailDuplicadoException;
 import com.tiendaonline.clientes.repository.ClienteRepository;
 
 @Service 
@@ -21,7 +22,7 @@ public class ClienteService {
 
         if(emailDuplicado){
             // Excepcion cliente con email duplicado
-            throw new IllegalArgumentException("El email ya pertenece a un cliente registrado");
+            throw new EmailDuplicadoException();
         }
 
         Cliente cliente = new Cliente();

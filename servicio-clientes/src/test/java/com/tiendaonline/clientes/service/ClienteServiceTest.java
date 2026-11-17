@@ -20,6 +20,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.tiendaonline.clientes.entity.Cliente;
+import com.tiendaonline.clientes.exception.EmailDuplicadoException;
 import com.tiendaonline.clientes.repository.ClienteRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -37,7 +38,7 @@ public class ClienteServiceTest {
 
         // Compara la excepcion que levanta el service
         assertThrows(
-            IllegalArgumentException.class,
+            EmailDuplicadoException.class,
             () -> service.registrarCliente("nombre", "nombre@gmail.com")
         );
         
