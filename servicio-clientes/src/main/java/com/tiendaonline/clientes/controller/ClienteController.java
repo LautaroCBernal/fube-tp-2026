@@ -1,5 +1,6 @@
 package com.tiendaonline.clientes.controller;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.http.HttpStatus;
@@ -9,6 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.tiendaonline.clientes.dto.ClienteRequest;
 import com.tiendaonline.clientes.dto.ClienteResponse;
+import com.tiendaonline.clientes.dto.PedidoResponse;
 import com.tiendaonline.clientes.entity.Cliente;
 import com.tiendaonline.clientes.service.ClienteService;
 import com.tiendaonline.clientes.service.FeatureFlagService;
@@ -20,6 +22,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
+
 
 
 
@@ -74,5 +78,19 @@ public class ClienteController {
         
         return ResponseEntity.ok(clienteResponse);
     }
+
+    @GetMapping("/{id}/pedidos")
+    public ResponseEntity<List<PedidoResponse>> obtenerPedidosPorCliente(@PathVariable("id") Integer id) {
+        Optional<List<PedidoResponse>> respuesta = service.obtenerPedidosPorCliente(id);
+        
+        // Si no se encuentra
+        if (respuesta.isEmpty()){
+            return ResponseEntity.notFound().build();
+        }
+        
+        // Si se encuentra
+        return ResponseEntity.ok(respuesta.get());
+    }
+    
     
 }

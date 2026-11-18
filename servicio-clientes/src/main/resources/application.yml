@@ -18,3 +18,7 @@ spring:
 
 statsig:
   server-key: ${STATSIG_SERVER_KEY}
+
+servicios:
+  pedidos:
+    url: ${SERVICIO_PEDIDOS_URL:http://localhost:8083}

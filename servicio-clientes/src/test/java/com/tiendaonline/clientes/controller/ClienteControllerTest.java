@@ -8,6 +8,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.tiendaonline.clientes.entity.Cliente;
 import com.tiendaonline.clientes.exception.EmailDuplicadoException;
+import com.tiendaonline.clientes.exception.ServicioPedidosNoDisponibleException;
 import com.tiendaonline.clientes.service.ClienteService;
 import com.tiendaonline.clientes.service.FeatureFlagService;
 import com.tiendaonline.clientes.service.PiiMaskingService;
@@ -19,6 +20,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import org.springframework.http.MediaType;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 // Carga solo el contexto de Spring necesario
@@ -167,5 +169,41 @@ public class ClienteControllerTest {
             .andExpect(status().isNotFound());
 
         verify(service).obtenerCliente(0);
+    }
+
+    @Test
+    void obtenerPedidosClienteExistente() throws Exception {
+        when(service.obtenerPedidosPorCliente(1))
+            .thenReturn(Optional.of(List.of()));
+
+        mockMvc.perform(get("/v1/clientes/1/pedidos"))
+            .andExpect(status().isOk())
+            .andExpect(content().json("[]"));
+
+        verify(service).obtenerPedidosPorCliente(1);
+    }
+
+    @Test
+    void obtenerPedidosClienteInexistente() throws Exception {
+        when(service.obtenerPedidosPorCliente(1))
+            .thenReturn(Optional.empty());
+    
+        mockMvc.perform(get("/v1/clientes/1/pedidos"))
+            .andExpect(status().isNotFound());
+    
+        verify(service).obtenerPedidosPorCliente(1);
+    }
+
+    @Test
+    void obtenerPedidosServicioNoDisponible() throws Exception {
+        when(service.obtenerPedidosPorCliente(1))
+            .thenThrow(new ServicioPedidosNoDisponibleException());
+    
+        mockMvc.perform(get("/v1/clientes/1/pedidos"))
+            .andExpect(status().isServiceUnavailable())
+            .andExpect(jsonPath("$.status").value(503))
+            .andExpect(jsonPath("$.mensaje").value("El servicio de pedidos no esta disponible en este momento"));
+    
+        verify(service).obtenerPedidosPorCliente(1);
     }
 }

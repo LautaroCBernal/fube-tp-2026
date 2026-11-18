@@ -9,8 +9,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
@@ -19,6 +21,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.tiendaonline.clientes.client.PedidoClient;
+import com.tiendaonline.clientes.dto.PedidoResponse;
 import com.tiendaonline.clientes.entity.Cliente;
 import com.tiendaonline.clientes.exception.EmailDuplicadoException;
 import com.tiendaonline.clientes.repository.ClienteRepository;
@@ -27,6 +31,9 @@ import com.tiendaonline.clientes.repository.ClienteRepository;
 public class ClienteServiceTest {
     @Mock
     private ClienteRepository repository;
+
+    @Mock 
+    private PedidoClient pedidoClient;
 
     @InjectMocks
     private ClienteService service;
@@ -87,7 +94,7 @@ public class ClienteServiceTest {
     }
 
     @Test
-    void testeClienteInexistente(){
+    void testClienteInexistente(){
         // Prepara la respuesta del repositorio simulado
         when(repository.findById(1))
             .thenReturn(Optional.empty());
@@ -98,6 +105,30 @@ public class ClienteServiceTest {
         // Verifica que no se haya encontrado el cliente
         verify(repository, times(1)).findById(1);
         assertTrue(clienteEncontrado.isEmpty());
+    }
+
+    @Test 
+    void obtenerPedidosClienteExistente(){
+        when(repository.existsById(1)).thenReturn(true);
+        when(pedidoClient.obtenerPedidosPorCliente(1)).thenReturn(List.of());
+
+        Optional<List<PedidoResponse>> pedidos = service.obtenerPedidosPorCliente(1);
+        
+        assertTrue(pedidos.isPresent());
+        assertTrue(pedidos.get().isEmpty());
+        verify(repository).existsById(1);
+        verify(pedidoClient).obtenerPedidosPorCliente(1);    
+    }
+
+    @Test 
+    void obtenerPedidosClienteInexistente(){
+        when(repository.existsById(1)).thenReturn(false);
+        
+        Optional<List<PedidoResponse>> pedidos = service.obtenerPedidosPorCliente(1);
+        
+        assertTrue(pedidos.isEmpty());
+        verify(repository).existsById(1);
+        verifyNoInteractions(pedidoClient);
     }
 }
 

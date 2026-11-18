@@ -36,4 +36,20 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(respuesta);
     }
 
+    @ExceptionHandler(ServicioPedidosNoDisponibleException.class)
+    public ResponseEntity<ErrorResponse> handleServicioPedidoNoDisponible(ServicioPedidosNoDisponibleException exception){
+        String mensaje = exception.getMessage();
+        ErrorResponse respuesta = new ErrorResponse(503, mensaje);
+
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(respuesta);
+    }
+
+    @ExceptionHandler(RespuestaPedidosInvalidaException.class)
+    public ResponseEntity<ErrorResponse> handleRespuestaPedidosInvalida(RespuestaPedidosInvalidaException exception){
+        String mensaje = exception.getMessage();
+        ErrorResponse respuesta = new ErrorResponse(502, mensaje);
+
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(respuesta);
+    }
+
 }
