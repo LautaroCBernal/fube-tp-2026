@@ -6,12 +6,12 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import com.google.common.base.VerifyException;
 import com.tiendaonline.clientes.entity.Cliente;
 import com.tiendaonline.clientes.exception.EmailDuplicadoException;
 import com.tiendaonline.clientes.service.ClienteService;
+import com.tiendaonline.clientes.service.FeatureFlagService;
+import com.tiendaonline.clientes.service.PiiMaskingService;
 
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -30,6 +30,12 @@ public class ClienteControllerTest {
 
     @MockBean
     private ClienteService service;
+
+    @MockBean
+    private FeatureFlagService  featureFlagService;
+
+    @MockBean
+    private PiiMaskingService piiMaskingService;
 
     @Test
     void registrarClienteValido() throws Exception{
@@ -134,6 +140,9 @@ public class ClienteControllerTest {
 
         when(service.obtenerCliente(1))
             .thenReturn(Optional.of(cliente));
+        
+        when(featureFlagService.isMaskPiiEnabled())
+            .thenReturn(false);
 
         // Ejecuta la peticion y verifica el resultado
         mockMvc.perform(get("/v1/clientes/1"))
@@ -144,6 +153,7 @@ public class ClienteControllerTest {
             .andExpect(jsonPath("$.fechaAlta").value("2026-01-01T00:00:00"));
 
         verify(service).obtenerCliente(1);
+        verifyNoInteractions(piiMaskingService);
     }
 
     @Test
