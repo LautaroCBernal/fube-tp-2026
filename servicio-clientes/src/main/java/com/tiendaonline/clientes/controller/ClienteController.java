@@ -16,13 +16,16 @@ import com.tiendaonline.clientes.service.ClienteService;
 import com.tiendaonline.clientes.service.FeatureFlagService;
 import com.tiendaonline.clientes.service.PiiMaskingService;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestParam;
 
 
 
@@ -32,6 +35,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 // Mapea las peticiones /api/v1/clientes
 @RestController
 @RequestMapping("/v1/clientes")
+@Tag(name = "Clientes", description = "API de gestión de clientes")
 public class ClienteController {
     private final ClienteService service;
     private final FeatureFlagService featureFlagService;
@@ -45,6 +49,12 @@ public class ClienteController {
 
     // POST
     @PostMapping
+    @Operation(summary = "Registrar cliente")
+    @ApiResponses({
+        @ApiResponse(responseCode = "201", description = "Cliente registrado correctamente"),
+        @ApiResponse(responseCode = "400", description = "Datos de entrada invalidos"),
+        @ApiResponse(responseCode = "409", description = "Email ya registrado")
+    })
     public ResponseEntity<ClienteResponse> registrarCliente(@Valid @RequestBody ClienteRequest clienteRequest) {
         
         Cliente cliente = service.registrarCliente(clienteRequest.nombre(), clienteRequest.email());
@@ -54,6 +64,11 @@ public class ClienteController {
     }
     
     @GetMapping("/{id}")
+    @Operation(summary = "Obtener cliente")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Cliente encontrado"),
+        @ApiResponse(responseCode = "404", description = "Cliente inexistente")
+    })
     public ResponseEntity<ClienteResponse> obtenerCliente(@PathVariable("id") Integer id) {
         Optional<Cliente> respuesta = service.obtenerCliente(id);
         
@@ -80,6 +95,13 @@ public class ClienteController {
     }
 
     @GetMapping("/{id}/pedidos")
+    @Operation(summary = "Obtener pedidos de un cliente")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Listado de pedidos del cliente"),
+        @ApiResponse(responseCode = "404", description = "Cliente Inexistente"),
+        @ApiResponse(responseCode = "502", description = "Respuesta invalida del servicio de pedidos"),
+        @ApiResponse(responseCode = "503", description = "Servicio de pedidos no disponible")
+    })
     public ResponseEntity<List<PedidoResponse>> obtenerPedidosPorCliente(@PathVariable("id") Integer id) {
         Optional<List<PedidoResponse>> respuesta = service.obtenerPedidosPorCliente(id);
         

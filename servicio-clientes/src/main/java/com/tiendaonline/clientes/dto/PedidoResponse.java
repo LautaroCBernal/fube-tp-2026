@@ -1,7 +1,9 @@
 package com.tiendaonline.clientes.dto;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
 
-public record PedidoResponse(Integer id, Integer productoId, Integer cantidad, BigDecimal precioUnitario) {
+public record PedidoResponse(Integer id, Integer clienteId, String estado, BigDecimal montoTotal, LocalDateTime fechaCreacion, LocalDateTime fechaActualizacion, List<ItemPedidoResponse> items) {
 
 }
