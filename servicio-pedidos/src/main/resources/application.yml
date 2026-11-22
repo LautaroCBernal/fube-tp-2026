@@ -24,3 +24,10 @@ servicios:
     url: ${SERVICIO_CLIENTES_URL:http://localhost:8081}
   inventario:
     url: ${SERVICIO_INVENTARIO_URL:http://localhost:8082}
+
+# Job de expiracion de pedidos: horas de antiguedad para considerar vencido un pedido CREADO
+# y cuando corre solo (todos los dias a las 2:00 AM)
+batch:
+  expiracion:
+    horas: 24
+    cron: "0 0 2 * * *"
