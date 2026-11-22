@@ -94,6 +94,14 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(respuesta);
     }
 
+    // 500: no se pudo lanzar el job de Spring Batch
+    @ExceptionHandler(EjecucionBatchException.class)
+    public ResponseEntity<ErrorResponse> handleEjecucionBatch(EjecucionBatchException exception) {
+        ErrorResponse respuesta = new ErrorResponse(500, exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(respuesta);
+    }
+
     // ---------- Fallas al comunicarse con otros servicios ----------
 
     // 503: el otro servicio no esta disponible
