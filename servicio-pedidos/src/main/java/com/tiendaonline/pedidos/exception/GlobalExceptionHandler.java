@@ -13,7 +13,6 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 // Mismo formato de error {status, mensaje} que clientes e inventario.
-// Las excepciones de negocio (cliente inexistente, stock insuficiente, estado invalido...) se agregan en los pasos siguientes.
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -82,6 +81,14 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(StockInsuficienteException.class)
     public ResponseEntity<ErrorResponse> handleStockInsuficiente(StockInsuficienteException exception) {
+        ErrorResponse respuesta = new ErrorResponse(409, exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(respuesta);
+    }
+
+    // 409: la accion pedida no es valida para el estado actual del pedido (ej: cancelar uno ya cancelado)
+    @ExceptionHandler(EstadoPedidoInvalidoException.class)
+    public ResponseEntity<ErrorResponse> handleEstadoPedidoInvalido(EstadoPedidoInvalidoException exception) {
         ErrorResponse respuesta = new ErrorResponse(409, exception.getMessage());
 
         return ResponseEntity.status(HttpStatus.CONFLICT).body(respuesta);

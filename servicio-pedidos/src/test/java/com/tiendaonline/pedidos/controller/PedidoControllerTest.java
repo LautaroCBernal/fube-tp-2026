@@ -28,6 +28,7 @@ import com.tiendaonline.pedidos.dto.PedidoRequest;
 import com.tiendaonline.pedidos.dto.PedidoResponse;
 import com.tiendaonline.pedidos.entity.EstadoPedido;
 import com.tiendaonline.pedidos.exception.ClienteNoEncontradoException;
+import com.tiendaonline.pedidos.exception.EstadoPedidoInvalidoException;
 import com.tiendaonline.pedidos.exception.PedidoNoEncontradoException;
 import com.tiendaonline.pedidos.exception.ServicioNoDisponibleException;
 import com.tiendaonline.pedidos.exception.StockInsuficienteException;
@@ -210,5 +211,88 @@ public class PedidoControllerTest {
             .andExpect(status().isServiceUnavailable())
             .andExpect(jsonPath("$.status").value(503))
             .andExpect(jsonPath("$.mensaje").value("El servicio de inventario no esta disponible en este momento"));
+    }
+
+    // ---------- POST /v1/pedidos/{id}/cancelar ----------
+
+    // Copia de la respuesta de ejemplo pero con otro estado
+    private PedidoResponse conEstado(PedidoResponse base, EstadoPedido estado) {
+        return new PedidoResponse(base.id(), base.clienteId(), estado, base.montoTotal(),
+            base.fechaCreacion(), base.fechaActualizacion(), base.items());
+    }
+
+    @Test
+    void cancelarPedidoExistente() throws Exception {
+        when(service.cancelarPedido(1)).thenReturn(conEstado(crearPedidoResponse(), EstadoPedido.CANCELADO));
+
+        mockMvc.perform(post("/v1/pedidos/1/cancelar"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.id").value(1))
+            .andExpect(jsonPath("$.estado").value("CANCELADO"));
+
+        verify(service).cancelarPedido(1);
+    }
+
+    @Test
+    void cancelarPedidoInexistente() throws Exception {
+        when(service.cancelarPedido(99)).thenThrow(new PedidoNoEncontradoException(99));
+
+        mockMvc.perform(post("/v1/pedidos/99/cancelar"))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.status").value(404))
+            .andExpect(jsonPath("$.mensaje").value("No existe el pedido con id 99"));
+    }
+
+    @Test
+    void cancelarPedidoEnEstadoInvalido() throws Exception {
+        when(service.cancelarPedido(1))
+            .thenThrow(new EstadoPedidoInvalidoException(1, EstadoPedido.CANCELADO, "cancelar"));
+
+        mockMvc.perform(post("/v1/pedidos/1/cancelar"))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.status").value(409))
+            .andExpect(jsonPath("$.mensaje").value("No se puede cancelar el pedido 1 porque esta en estado CANCELADO"));
+    }
+
+    @Test
+    void cancelarPedidoConInventarioNoDisponible() throws Exception {
+        when(service.cancelarPedido(1)).thenThrow(new ServicioNoDisponibleException("inventario"));
+
+        mockMvc.perform(post("/v1/pedidos/1/cancelar"))
+            .andExpect(status().isServiceUnavailable())
+            .andExpect(jsonPath("$.status").value(503));
+    }
+
+    // ---------- POST /v1/pedidos/{id}/confirmar ----------
+
+    @Test
+    void confirmarPedidoExistente() throws Exception {
+        when(service.confirmarPedido(1)).thenReturn(conEstado(crearPedidoResponse(), EstadoPedido.CONFIRMADO));
+
+        mockMvc.perform(post("/v1/pedidos/1/confirmar"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.estado").value("CONFIRMADO"));
+
+        verify(service).confirmarPedido(1);
+    }
+
+    @Test
+    void confirmarPedidoInexistente() throws Exception {
+        when(service.confirmarPedido(99)).thenThrow(new PedidoNoEncontradoException(99));
+
+        mockMvc.perform(post("/v1/pedidos/99/confirmar"))
+            .andExpect(status().isNotFound())
+            .andExpect(jsonPath("$.status").value(404));
+    }
+
+    @Test
+    void confirmarPedidoEnEstadoInvalido() throws Exception {
+        when(service.confirmarPedido(1))
+            .thenThrow(new EstadoPedidoInvalidoException(1, EstadoPedido.CONFIRMADO, "confirmar"));
+
+        mockMvc.perform(post("/v1/pedidos/1/confirmar"))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.status").value(409))
+            .andExpect(jsonPath("$.mensaje").value("No se puede confirmar el pedido 1 porque esta en estado CONFIRMADO"));
     }
 }

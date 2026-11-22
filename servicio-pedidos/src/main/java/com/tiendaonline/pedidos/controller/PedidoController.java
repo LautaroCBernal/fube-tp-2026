@@ -55,6 +55,38 @@ public class PedidoController {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.crearPedido(request));
     }
 
+    @PostMapping("/{id}/cancelar")
+    @Operation(summary = "Cancelar un pedido",
+               description = "Solo se puede cancelar un pedido CREADO o CONFIRMADO. Libera el stock reservado en inventario")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Pedido cancelado"),
+        @ApiResponse(responseCode = "404", description = "Pedido inexistente",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+        @ApiResponse(responseCode = "409", description = "El estado del pedido no permite cancelarlo",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+        @ApiResponse(responseCode = "502", description = "Respuesta invalida de inventario",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+        @ApiResponse(responseCode = "503", description = "Inventario no disponible",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    public ResponseEntity<PedidoResponse> cancelarPedido(@PathVariable("id") Integer id) {
+        return ResponseEntity.ok(service.cancelarPedido(id));
+    }
+
+    @PostMapping("/{id}/confirmar")
+    @Operation(summary = "Confirmar un pedido",
+               description = "Solo se puede confirmar un pedido en estado CREADO")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Pedido confirmado"),
+        @ApiResponse(responseCode = "404", description = "Pedido inexistente",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+        @ApiResponse(responseCode = "409", description = "El estado del pedido no permite confirmarlo",
+            content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    public ResponseEntity<PedidoResponse> confirmarPedido(@PathVariable("id") Integer id) {
+        return ResponseEntity.ok(service.confirmarPedido(id));
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Consultar un pedido por su id")
     @ApiResponses({
