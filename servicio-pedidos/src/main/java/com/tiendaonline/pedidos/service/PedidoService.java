@@ -19,6 +19,7 @@ import com.tiendaonline.pedidos.entity.EstadoPedido;
 import com.tiendaonline.pedidos.entity.ItemPedido;
 import com.tiendaonline.pedidos.entity.Pedido;
 import com.tiendaonline.pedidos.exception.ClienteNoEncontradoException;
+import com.tiendaonline.pedidos.exception.EstadoPedidoInvalidoException;
 import com.tiendaonline.pedidos.exception.PedidoNoEncontradoException;
 import com.tiendaonline.pedidos.repository.PedidoRepository;
 
@@ -115,6 +116,41 @@ public class PedidoService {
         return pedidoRepository.findByClienteIdOrderByFechaCreacionDesc(clienteId).stream()
             .map(this::aResponse)
             .toList();
+    }
+
+    // Igual que crearPedido, NO es @Transactional: llama por HTTP a inventario. Los items se traen junto con
+    // el pedido (findConItemsById) porque son LAZY y mas adelante no hay una sesion de Hibernate abierta.
+    public PedidoResponse cancelarPedido(Integer id) {
+        Pedido pedido = pedidoRepository.findConItemsById(id)
+            .orElseThrow(() -> new PedidoNoEncontradoException(id));
+
+        if (pedido.getEstado() != EstadoPedido.CREADO && pedido.getEstado() != EstadoPedido.CONFIRMADO) {
+            throw new EstadoPedidoInvalidoException(id, pedido.getEstado(), "cancelar");
+        }
+
+        // Primero se libera el stock y recien despues se cambia el estado. Si inventario falla, el pedido
+        // queda como estaba y se puede reintentar (liberar es idempotente). Al reves, podria quedar un
+        // pedido CANCELADO con el stock reservado para siempre.
+        inventarioClient.liberarReservasDePedido(pedido.getId());
+
+        pedido.setEstado(EstadoPedido.CANCELADO);
+        return aResponse(pedidoRepository.save(pedido));
+    }
+
+    // La consigna no define como se confirma un pedido, pero el batch habla de pedidos "sin confirmar",
+    // asi que hace falta una forma de hacerlo. No llama a otros servicios, por eso si puede ser @Transactional.
+    @Transactional
+    public PedidoResponse confirmarPedido(Integer id) {
+        Pedido pedido = pedidoRepository.findById(id)
+            .orElseThrow(() -> new PedidoNoEncontradoException(id));
+
+        if (pedido.getEstado() != EstadoPedido.CREADO) {
+            throw new EstadoPedidoInvalidoException(id, pedido.getEstado(), "confirmar");
+        }
+
+        pedido.setEstado(EstadoPedido.CONFIRMADO);
+        // saveAndFlush (y no save) para que se ejecute ya el @PreUpdate y la respuesta traiga la fecha nueva
+        return aResponse(pedidoRepository.saveAndFlush(pedido));
     }
 
     // Se devuelven DTOs y no entidades: asi la API no queda atada al modelo de la base

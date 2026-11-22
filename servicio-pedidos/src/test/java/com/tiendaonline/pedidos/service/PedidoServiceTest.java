@@ -34,6 +34,7 @@ import com.tiendaonline.pedidos.entity.EstadoPedido;
 import com.tiendaonline.pedidos.entity.ItemPedido;
 import com.tiendaonline.pedidos.entity.Pedido;
 import com.tiendaonline.pedidos.exception.ClienteNoEncontradoException;
+import com.tiendaonline.pedidos.exception.EstadoPedidoInvalidoException;
 import com.tiendaonline.pedidos.exception.PedidoNoEncontradoException;
 import com.tiendaonline.pedidos.exception.ProductoNoEncontradoException;
 import com.tiendaonline.pedidos.exception.ServicioNoDisponibleException;
@@ -220,5 +221,104 @@ class PedidoServiceTest {
         verify(pedidoRepository, times(2)).save(captor.capture());
         assertEquals(EstadoPedido.CANCELADO, captor.getValue().getEstado());
         verify(pedidoRepository, never()).deleteById(any());
+    }
+
+    // ---------- cancelarPedido ----------
+
+    @Test
+    void cancelarPedidoCreadoLiberaElStockYLoDejaCancelado() {
+        when(pedidoRepository.findConItemsById(1)).thenReturn(Optional.of(crearPedido(1)));
+        when(pedidoRepository.save(any(Pedido.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PedidoResponse respuesta = service.cancelarPedido(1);
+
+        verify(inventarioClient).liberarReservasDePedido(1);
+        assertEquals(EstadoPedido.CANCELADO, respuesta.estado());
+        assertEquals(1, respuesta.items().size());
+    }
+
+    @Test
+    void cancelarPedidoConfirmadoTambienSePuedeCancelar() {
+        Pedido pedido = crearPedido(1);
+        pedido.setEstado(EstadoPedido.CONFIRMADO);
+
+        when(pedidoRepository.findConItemsById(1)).thenReturn(Optional.of(pedido));
+        when(pedidoRepository.save(any(Pedido.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PedidoResponse respuesta = service.cancelarPedido(1);
+
+        verify(inventarioClient).liberarReservasDePedido(1);
+        assertEquals(EstadoPedido.CANCELADO, respuesta.estado());
+    }
+
+    @Test
+    void cancelarPedidoCanceladoOExpiradoLanzaExcepcionYNoTocaInventario() {
+        Pedido pedido = crearPedido(1);
+        when(pedidoRepository.findConItemsById(1)).thenReturn(Optional.of(pedido));
+
+        // Se prueba con los dos estados que no admiten cancelacion
+        for (EstadoPedido estado : List.of(EstadoPedido.CANCELADO, EstadoPedido.EXPIRADO)) {
+            pedido.setEstado(estado);
+
+            assertThrows(EstadoPedidoInvalidoException.class, () -> service.cancelarPedido(1));
+        }
+
+        verifyNoInteractions(inventarioClient);
+        verify(pedidoRepository, never()).save(any());
+    }
+
+    @Test
+    void cancelarPedidoInexistenteLanzaExcepcion() {
+        when(pedidoRepository.findConItemsById(99)).thenReturn(Optional.empty());
+
+        assertThrows(PedidoNoEncontradoException.class, () -> service.cancelarPedido(99));
+
+        verifyNoInteractions(inventarioClient);
+    }
+
+    @Test
+    void cancelarPedidoConInventarioCaidoNoCambiaElEstado() {
+        Pedido pedido = crearPedido(1);
+
+        when(pedidoRepository.findConItemsById(1)).thenReturn(Optional.of(pedido));
+        doThrow(new ServicioNoDisponibleException("inventario")).when(inventarioClient).liberarReservasDePedido(1);
+
+        assertThrows(ServicioNoDisponibleException.class, () -> service.cancelarPedido(1));
+
+        // El pedido sigue CREADO y no se guardo nada: se puede reintentar la cancelacion
+        assertEquals(EstadoPedido.CREADO, pedido.getEstado());
+        verify(pedidoRepository, never()).save(any());
+    }
+
+    // ---------- confirmarPedido ----------
+
+    @Test
+    void confirmarPedidoCreadoLoDejaConfirmado() {
+        when(pedidoRepository.findById(1)).thenReturn(Optional.of(crearPedido(1)));
+        when(pedidoRepository.saveAndFlush(any(Pedido.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PedidoResponse respuesta = service.confirmarPedido(1);
+
+        assertEquals(EstadoPedido.CONFIRMADO, respuesta.estado());
+        verifyNoInteractions(inventarioClient);
+    }
+
+    @Test
+    void confirmarPedidoQueNoEstaCreadoLanzaExcepcion() {
+        Pedido pedido = crearPedido(1);
+        pedido.setEstado(EstadoPedido.CONFIRMADO);
+
+        when(pedidoRepository.findById(1)).thenReturn(Optional.of(pedido));
+
+        assertThrows(EstadoPedidoInvalidoException.class, () -> service.confirmarPedido(1));
+
+        verify(pedidoRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void confirmarPedidoInexistenteLanzaExcepcion() {
+        when(pedidoRepository.findById(99)).thenReturn(Optional.empty());
+
+        assertThrows(PedidoNoEncontradoException.class, () -> service.confirmarPedido(99));
     }
 }
