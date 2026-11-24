@@ -1,5 +1,7 @@
 package com.tiendaonline.pedidos.service;
 
+import static net.logstash.logback.argument.StructuredArguments.kv;
+
 import java.math.BigDecimal;
 import java.util.List;
 
@@ -21,6 +23,7 @@ import com.tiendaonline.pedidos.entity.Pedido;
 import com.tiendaonline.pedidos.exception.ClienteNoEncontradoException;
 import com.tiendaonline.pedidos.exception.EstadoPedidoInvalidoException;
 import com.tiendaonline.pedidos.exception.PedidoNoEncontradoException;
+import com.tiendaonline.pedidos.exception.ProductoNoEncontradoException;
 import com.tiendaonline.pedidos.repository.PedidoRepository;
 
 @Service
@@ -44,9 +47,14 @@ public class PedidoService {
     public PedidoResponse crearPedido(PedidoRequest request) {
         // 1. Validar que el cliente exista (si no, no se toca nada)
         if (!clienteClient.existeCliente(request.clienteId())) {
+            log.warn("No se creo el pedido: el cliente no existe {}", kv("clienteId", request.clienteId()));
             throw new ClienteNoEncontradoException(request.clienteId());
         }
 
+
+
+
+        
         // 2. Armar el pedido consultando el precio de cada producto a inventario.
         //    Todavia no se reservo ni guardo nada: si un producto no existe, se corta aca sin efectos.
         Pedido pedido = new Pedido();
@@ -55,7 +63,14 @@ public class PedidoService {
 
         BigDecimal montoTotal = BigDecimal.ZERO;
         for (ItemPedidoRequest itemRequest : request.items()) {
-            StockResponse stock = inventarioClient.obtenerStock(itemRequest.productoId());
+            StockResponse stock;
+            try {
+                stock = inventarioClient.obtenerStock(itemRequest.productoId());
+            } catch (ProductoNoEncontradoException e) {
+                log.warn("No se creó el pedido: el producto no existe {} {}",
+                        kv("clienteId", request.clienteId()), kv("productoId", itemRequest.productoId()));
+                throw e;
+            }
 
             ItemPedido item = new ItemPedido();
             item.setProductoId(itemRequest.productoId());
@@ -76,9 +91,14 @@ public class PedidoService {
                 inventarioClient.reservar(item.getProductoId(), guardado.getId(), item.getCantidad());
             }
         } catch (RuntimeException e) {
+            log.warn("Fallo la reserva de stock, se deshace el pedido {} motivo: {}",
+                kv("pedidoId", guardado.getId()), e.getMessage());
             compensar(guardado);
             throw e;
         }
+
+        log.info("Pedido creado {} {} {}", kv("pedidoId", guardado.getId()),
+            kv("clienteId", guardado.getClienteId()), kv("montoTotal", guardado.getMontoTotal()));
 
         return aResponse(guardado);
     }
@@ -98,6 +118,7 @@ public class PedidoService {
         }
 
         pedidoRepository.deleteById(pedido.getId());
+        log.info("Compensacion completada: reservas liberadas y pedido eliminado {}", kv("pedidoId", pedido.getId()));
     }
 
     // @Transactional porque los items son LAZY: hay que leerlos con la sesion de Hibernate abierta,
@@ -113,6 +134,7 @@ public class PedidoService {
     // Si el cliente no tiene pedidos devuelve una lista vacia (no es un error)
     @Transactional(readOnly = true)
     public List<PedidoResponse> listarPedidosPorCliente(Integer clienteId) {
+        log.info("Listando los pedidos del cliente {}", kv("clienteId", clienteId));
         return pedidoRepository.findByClienteIdOrderByFechaCreacionDesc(clienteId).stream()
             .map(this::aResponse)
             .toList();
@@ -134,7 +156,10 @@ public class PedidoService {
         inventarioClient.liberarReservasDePedido(pedido.getId());
 
         pedido.setEstado(EstadoPedido.CANCELADO);
-        return aResponse(pedidoRepository.save(pedido));
+        PedidoResponse respuesta = aResponse(pedidoRepository.save(pedido));
+        log.info("Pedido cancelado {}", kv("pedidoId", id));
+
+        return respuesta;
     }
 
     // La consigna no define como se confirma un pedido, pero el batch habla de pedidos "sin confirmar",
@@ -150,7 +175,10 @@ public class PedidoService {
 
         pedido.setEstado(EstadoPedido.CONFIRMADO);
         // saveAndFlush (y no save) para que se ejecute ya el @PreUpdate y la respuesta traiga la fecha nueva
-        return aResponse(pedidoRepository.saveAndFlush(pedido));
+        PedidoResponse respuesta = aResponse(pedidoRepository.saveAndFlush(pedido));
+        log.info("Pedido confirmado {}", kv("pedidoId", id));
+
+        return respuesta;
     }
 
     // Se devuelven DTOs y no entidades: asi la API no queda atada al modelo de la base

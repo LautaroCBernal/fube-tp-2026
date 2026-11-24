@@ -1,8 +1,12 @@
 package com.tiendaonline.inventario.service;
 
+import static net.logstash.logback.argument.StructuredArguments.kv;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,6 +21,8 @@ import com.tiendaonline.inventario.repository.ReservaRepository;
 
 @Service
 public class InventarioService {
+    private static final Logger log = LoggerFactory.getLogger(InventarioService.class);
+
     private final ProductoRepository productoRepository;
     private final ReservaRepository reservaRepository;
 
@@ -38,8 +44,11 @@ public class InventarioService {
         if (filasActualizadas == 0) {
             // No se actualizo nada: o el producto no existe o no alcanza el stock
             if (!productoRepository.existsById(productoId)) {
+                log.warn("Reserva rechazada: el producto no existe {}", kv("productoId", productoId));
                 throw new ProductoNoEncontradoException(productoId);
             }
+            log.warn("Reserva rechazada: stock insuficiente {} {} {}", kv("productoId", productoId),
+                kv("pedidoId", pedidoId), kv("cantidad", cantidad));
             throw new StockInsuficienteException();
         }
 
@@ -50,7 +59,11 @@ public class InventarioService {
         reserva.setEstado(EstadoReserva.ACTIVA);
         reserva.setFechaCreacion(LocalDateTime.now());
 
-        return reservaRepository.save(reserva);
+        Reserva guardada = reservaRepository.save(reserva);
+        log.info("Stock reservado {} {} {} {}", kv("reservaId", guardada.getId()), kv("productoId", productoId),
+            kv("pedidoId", pedidoId), kv("cantidad", cantidad));
+
+        return guardada;
     }
 
     // Liberar es idempotente: si la reserva ya estaba liberada no se repone stock de nuevo
@@ -75,6 +88,7 @@ public class InventarioService {
         for (Reserva reserva : activas) {
             liberar(reserva);
         }
+        log.info("Reservas del pedido liberadas {} {}", kv("pedidoId", pedidoId), kv("reservasLiberadas", activas.size()));
 
         return activas;
     }
@@ -87,6 +101,8 @@ public class InventarioService {
 
         if (filasCambiadas == 1) {
             productoRepository.reponerStock(reserva.getProductoId(), reserva.getCantidad());
+            log.info("Reserva liberada y stock repuesto {} {} {}", kv("reservaId", reserva.getId()),
+                kv("productoId", reserva.getProductoId()), kv("cantidad", reserva.getCantidad()));
         }
 
         // Despues de este metodo la reserva esta LIBERADA en la base, sea quien sea que la liberó
