@@ -11,13 +11,16 @@ public class RestClientConfig {
     @Value("${servicios.pedidos.url}")
     private String pedidosUrl;
 
+    // Se construye a partir del RestClient.Builder que Spring ya trae configurado (y no con RestClient.builder()):
+    // ese builder esta instrumentado y agrega el traceId a cada llamada saliente, asi la request se puede
+    // seguir entre servicios. Con RestClient.builder() el trace se corta.
     @Bean  
-    public RestClient pedidosRestClient(){
+    public RestClient pedidosRestClient(RestClient.Builder builder){
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(2000);
         factory.setReadTimeout(5000);
 
-        return RestClient.builder()
+        return builder
             .baseUrl(pedidosUrl)
             .requestFactory(factory)
             .build();
