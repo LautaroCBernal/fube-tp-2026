@@ -31,3 +31,13 @@ batch:
   expiracion:
     horas: 24
     cron: "0 0 2 * * *"
+
+# Observabilidad: se traza el 100% de las requests (en produccion suele ser un porcentaje menor)
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+  endpoints:
+    web:
+      exposure:
+        include: health,info
